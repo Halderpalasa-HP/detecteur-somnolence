@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environnements
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Assets générés (gros fichiers)
+assets/face_landmarker.task
+assets/sonnerie.wav
+assets/message.wav
+
+# OS
+Thumbs.db
+.DS_Store

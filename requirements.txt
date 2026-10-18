@@ -1,0 +1,8 @@
+# Bibliothèques nécessaires au projet de détection de somnolence
+mediapipe
+opencv-python
+numpy
+pygame
+pyttsx3
+# Pour lancer les tests (facultatif)
+pytest

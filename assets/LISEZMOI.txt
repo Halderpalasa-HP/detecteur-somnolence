@@ -1,0 +1,2 @@
+Placez ici le fichier face_landmarker.task (voir README.md, section 2).
+Les fichiers sonnerie.wav et message.wav sont créés par : python scripts/generer_assets.py
