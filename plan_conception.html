@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan de conception – Détection de somnolence</title>
+<style>
+:root{--bg:#070d14;--card:#0d1722;--line:#1a2a3a;--ac:#2dd4bf;--tx:#cfe0ee;--mu:#6b8296;--ok:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 Arial,Helvetica,sans-serif}
+header,main{max-width:1100px;margin:0 auto;padding:24px 20px}
+.lb{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mu)}
+h1{font-size:28px;margin:6px 0 4px}h2{font-size:19px;margin:34px 0 12px;padding-top:6px;border-top:1px solid var(--line)}
+h2 span{color:var(--ac)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+.k{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.k b{display:block;font-size:30px;color:var(--ac)}
+.pipe{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pipe div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px}
+.pipe i{color:var(--ac);font-style:normal}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);background:#0a131d}
+td:first-child{color:#fff}code{font-family:Consolas,monospace;color:var(--ac);font-size:12.5px}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:10px 0;padding:0 14px}
+summary{cursor:pointer;padding:12px 0;font-weight:bold;color:#fff}
+summary small{color:var(--mu);font-weight:normal;margin-left:8px}
+.tag{font-size:11px;border:1px solid var(--ac);color:var(--ac);border-radius:20px;padding:1px 8px;margin-left:8px}
+details p{margin:0 0 8px;color:var(--tx)}details p em{color:var(--mu);font-style:normal}
+details table{margin:6px 0 14px}
+.w{overflow-x:auto}
+li{margin:4px 0}
+</style>
+</head>
+<body>
+<header>
+<div class="lb">Plan de conception · avant tout code</div>
+<h1>Système de détection de somnolence au volant</h1>
+<div style="color:var(--mu)">Architecture orientée classes · interface clinique · alerte sonore puis vocale</div>
+<div class="kpi" id="kpi"></div>
+</header>
+<main>
+<h2><span>1.</span> Vue d’ensemble</h2>
+<p>Une caméra filme le conducteur ; MediaPipe fournit 478 points du visage ; des calculs géométriques (EAR, MAR, pose) puis une analyse dans le temps alimentent une décision à trois niveaux (éveillé, somnolent, endormi). En cas d’endormissement : sonnerie, pause d’une seconde, message vocal. Le tout s’affiche dans un tableau de bord clinique avec masque de visage. Toutes les durées sont en secondes et tout est traité hors ligne, sans enregistrer la vidéo.</p>
+<div class="pipe" id="pipe"></div>
+
+<h2><span>2.</span> Modélisation des étapes et importance</h2>
+<div class="w"><table id="steps"></table></div>
+
+<h2><span>3.</span> Arborescence des fichiers</h2>
+<p>Objectif : 100 à 150 lignes par fichier, 500 au maximum. Les fichiers plus courts ont une seule responsabilité très nette. Les dossiers contiennent un fichier <code>__init__.py</code> vide (5 au total), plus <code>requirements.txt</code> et <code>README.md</code>.</p>
+<div class="w"><table id="files"></table></div>
+
+<h2><span>4.</span> Classes et méthodes</h2>
+<p>Les constructeurs (<code>__init__</code>) ne sont pas comptés dans les méthodes. Les dataclass et l’énumération comptent comme des classes.</p>
+<div id="classes"></div>
+
+<h2><span>5.</span> Modèles, bibliothèques et mots-clés : leur apport</h2>
+<p>Chaque usage sera annoté dans le code par un commentaire commençant par <code>APPORT :</code>.</p>
+<div class="w"><table id="tech"></table></div>
+
+<h2><span>6.</span> Ordre de codage et validation</h2>
+<div class="w"><table id="order"></table></div>
+
+<h2><span>7.</span> Choix de conception</h2>
+<ul id="choices"></ul>
+</main>
+<script>
+const F=[
+["main.py","Point d’entrée : construit et lance l’application",30],
+["config.py","Tous les réglages : seuils, durées, couleurs, chemins",120],
+["app.py","Boucle principale, interface, alerte",130],
+["pipeline.py","Enchaîne mesures, analyse et décision pour chaque image",130],
+["noyau/modeles.py","Objets de données partagés (états, indicateurs, visage…)",130],
+["noyau/camera.py","Acquisition vidéo",100],
+["noyau/suivi_visage.py","MediaPipe Face Landmarker : 478 points",140],
+["mesures/mesures_visage.py","Géométrie, EAR, MAR",130],
+["mesures/pose_tete.py","Pose de la tête avec solvePnP",110],
+["analyse/calibration.py","Calibration personnalisée de 5 s",100],
+["analyse/outils_temporels.py","Lissage, fenêtre PERCLOS, compteur, chronomètre",140],
+["analyse/analyseur_temporel.py","Assemble les outils temporels",120],
+["analyse/decision.py","Règles de décision de l’état",100],
+["alerte/generation_audio.py","Création de la sonnerie et de la voix (une seule fois)",120],
+["alerte/gestionnaire_alerte.py","Séquence sonnerie, pause 1 s, voix, dans un thread",140],
+["interface/dessin.py","Thème clinique et primitives de dessin",150],
+["interface/liaisons.py","Liaisons du maillage (API Tasks ou ancienne API)",100],
+["interface/rendu_masque.py","Masque de visage clinique",150],
+["interface/cartes.py","Cartes de données du panneau droit",150],
+["interface/carte_courbe.py","Carte à courbe de l’EAR sur 10 s",80],
+["interface/tableau_de_bord.py","Composition de l’écran, souris et clavier",150],
+["scripts/generer_assets.py","Génère sonnerie.wav et message.wav",40],
+["tests/test_mesures.py","Tests de la géométrie, de l’EAR et du MAR",80],
+["tests/test_analyse.py","Tests du lissage, du PERCLOS et de la décision",90]
+];
+const CL=[
+["noyau/modeles.py","Etat","énumération","Les 5 états : CALIBRATION, EVEILLE, SOMNOLENT, ENDORMI, VISAGE_PERDU.","Remplace des chaînes fragiles par des valeurs sûres.",[
+["libelle (propriété)","Texte français affiché.","Sépare l’affichage de la logique."]]],
+["noyau/modeles.py","ProfilUtilisateur","dataclass","Résultat de calibration : seuil EAR et tangage de référence.","Un seul objet transporte ce qui personnalise le système.",[]],
+["noyau/modeles.py","Indicateurs","dataclass","Sorties de l’analyse : fermé, durée, PERCLOS, fermetures longues, bâillements, EAR lissé.","Contrat clair entre analyse et décision.",[]],
+["noyau/modeles.py","ResultatVisage","classe","478 points en pixels et dimensions de l’image.","Évite les listes brutes et les indices dispersés.",[
+["point(i)","Renvoie (x, y) du point i.","Accès unique aux indices MediaPipe."],
+["points(indices)","Renvoie les points demandés.","Extrait les 6 points d’un œil en une ligne."],
+["en_entiers()","Renvoie tous les points arrondis.","cv2.line n’accepte que des entiers."]]],
+["noyau/modeles.py","OptionsAffichage","dataclass","Interrupteurs MAILLAGE, GUIDES, VALEURS.","Garde l’état de l’interface hors de la logique métier.",[
+["basculer(nom)","Inverse une option.","Utilisée par la souris et le clavier."]]],
+["noyau/modeles.py","SortieTraitement","dataclass","Tout ce qui sort d’une image : visage, état, indicateurs, EAR, MAR, écart de tangage, progression.","Le pipeline remet un seul paquet à l’interface.",[]],
+["config.py","Configuration","dataclass","Tous les réglages : seuils, durées, couleurs, chemins.","Aucun nombre magique : on règle en un seul endroit.",[
+["par_defaut() (classe)","Fabrique la configuration standard.","Reprend les valeurs du rapport."],
+["valider()","Vérifie la cohérence des seuils et fenêtres.","Échoue tôt avec un message clair."]]],
+["noyau/camera.py","Camera","classe","Acquisition vidéo avec cv2.VideoCapture.","Isole le matériel : le reste ne connaît que des images.",[
+["ouvrir()","Ouvre la caméra et règle la résolution.","Erreur claire si elle est absente."],
+["lire()","Renvoie (image BGR, instant en secondes) ou None.","Les durées se calculent en secondes."],
+["fermer()","Libère la caméra.","Évite de la laisser verrouillée."],
+["est_ouverte()","Indique si le flux est actif.","Condition de la boucle principale."]]],
+["noyau/suivi_visage.py","SuiviVisage","classe","Enveloppe MediaPipe Face Landmarker (BlazeFace + Face Landmark).","Seul endroit qui dépend de MediaPipe : facile à expliquer et à remplacer.",[
+["detecter(image_bgr, t)","Convertit en RGB, appelle le modèle, renvoie un ResultatVisage ou None.","Cœur de la perception."],
+["fermer()","Libère le modèle.","Fermeture propre."],
+["_creer_options()","Prépare les options : mode VIDEO, 1 visage, seuils de confiance.","Le mode VIDEO active le suivi entre images : plus rapide."],
+["_convertir_resultat(res, l, h)","Passe des coordonnées 0–1 aux pixels.","Les distances n’ont de sens qu’en pixels."]]],
+["mesures/mesures_visage.py","Geometrie","classe statique","Outils géométriques de base.","Brique commune de toutes les mesures.",[
+["distance(a, b) (statique)","Distance euclidienne entre deux points.","Base de l’EAR, du MAR et de la pose."],
+["normaliser_angle(a) (statique)","Ramène un angle dans [−180°, 180°].","Le tangage est cyclique : évite le saut de ±180°."]]],
+["mesures/mesures_visage.py","CalculateurEAR","classe","Mesure l’ouverture des yeux (Eye Aspect Ratio).","Transforme des points en un signe de fatigue indépendant de la distance.",[
+["calculer(visage)","Renvoie la moyenne des deux yeux.","Moyenner réduit le bruit."],
+["_ear_un_oeil(visage, indices)","Applique (‖p2−p6‖+‖p3−p5‖) / (2‖p1−p4‖).","Formule de Soukupová et Čech."]]],
+["mesures/mesures_visage.py","CalculateurMAR","classe","Mesure l’ouverture de la bouche (Mouth Aspect Ratio).","Détecte les bâillements, signe de fatigue.",[
+["calculer(visage)","Trois hauteurs des lèvres internes divisées par 3 × la largeur.","Même principe que l’EAR, appliqué à la bouche."]]],
+["mesures/pose_tete.py","EstimateurPose","classe","Estime tangage, lacet et roulis de la tête.","Une tête qui tombe confirme un endormissement.",[
+["estimer(visage)","Résout le PnP sur 6 points ; renvoie 3 angles ou None.","cv2.solvePnP retrouve la rotation 3D depuis des points 2D."],
+["_matrice_camera(l, h)","Construit la matrice K avec f ≈ largeur.","Requise par solvePnP."],
+["_angles_depuis_rotation(R)","Convertit la matrice de rotation en degrés.","Rodrigues puis angles d’Euler lisibles."]]],
+["analyse/calibration.py","Calibrateur","classe","Calibre l’utilisateur pendant 5 s.","Un seuil fixe donnerait des fausses alertes selon les morphologies.",[
+["ajouter_mesure(t, ear, tangage)","Mémorise une mesure.","Matière de la médiane."],
+["progression(t)","Renvoie un nombre de 0 à 1.","Alimente la barre de calibration."],
+["terminee(t)","Vrai après la durée de calibration.","Décide du passage en surveillance."],
+["construire_profil()","Seuil = 0,70 × médiane(EAR) ; tangage = médiane.","La médiane ignore les clignements."],
+["_est_valide()","Rejette une médiane trop basse (< 0,15).","Détecte une calibration faussée."]]],
+["analyse/outils_temporels.py","LisseurExponentiel","classe","Lissage exponentiel (EMA) du signal.","Atténue le bruit en ne gardant qu’une valeur.",[
+["lisser(valeur)","Calcule s = α·x + (1−α)·s précédent.","Évite qu’une image aberrante change l’état."],
+["reinitialiser()","Oublie l’historique.","Repart propre après une perte du visage."]]],
+["analyse/outils_temporels.py","FenetrePerclos","classe","Fenêtre glissante de 60 s sur « œil fermé ».","Le PERCLOS est un indicateur reconnu de somnolence.",[
+["ajouter(t, ferme)","Ajoute une observation.","Alimente la fenêtre."],
+["valeur()","Renvoie la fraction de temps fermé.","C’est le PERCLOS."],
+["_purger(t)","Retire ce qui a plus de 60 s.","Mémoire bornée, fenêtre glissante."]]],
+["analyse/outils_temporels.py","CompteurEvenements","classe","Compte les événements récents (fermetures longues, bâillements).","Un événement isolé ne dit rien, la répétition oui.",[
+["enregistrer(t)","Ajoute un événement.","Mémorise son instant."],
+["nombre(t)","Renvoie le nombre dans la fenêtre.","Alimente la décision."],
+["_purger(t)","Retire les événements trop anciens.","Fenêtre glissante."]]],
+["analyse/outils_temporels.py","ChronometreEtat","classe","Mesure la durée continue d’une condition vraie.","Distingue un clignement (0,3 s) d’un endormissement (1,5 s).",[
+["mettre_a_jour(t, actif)","Renvoie (durée en cours, durée terminée ou None).","Reconnaît début et fin d’une fermeture."],
+["reinitialiser()","Remet à zéro.","Évite une durée fantôme."]]],
+["analyse/analyseur_temporel.py","AnalyseurTemporel","classe","Assemble les outils temporels et produit les Indicateurs.","Un seul point d’entrée pour toute l’analyse dans le temps.",[
+["mettre_a_jour(t, ear, mar, seuil)","Renvoie les Indicateurs de l’instant.","Interface simple pour le pipeline."],
+["_traiter_yeux(t, ear, seuil)","Lisse, met à jour fenêtre, chronomètre et fermetures longues.","Isole la logique des yeux."],
+["_traiter_bouche(t, mar)","Détecte les bâillements (bouche ouverte plus de 1,2 s).","Isole la logique de la bouche."],
+["reinitialiser()","Réinitialise tous les outils.","Reprise après perte du visage."]]],
+["analyse/decision.py","MoteurDecision","classe","Règles qui donnent l’état du conducteur.","Décision transparente, explicable à l’oral.",[
+["decider(ind, ecart_tangage)","Renvoie ENDORMI, SOMNOLENT ou EVEILLE.","Règles ordonnées par gravité."],
+["_est_endormi(ind, ecart)","Fermeture ≥ 1,5 s, ou ≥ 0,8 s avec tête penchée de plus de 20°.","Condition la plus grave."],
+["_est_somnolent(ind)","PERCLOS ≥ 0,15, ou 3 fermetures longues, ou 2 bâillements.","Fatigue sans endormissement."]]],
+["alerte/generation_audio.py","GenerateurSonnerie","classe","Crée sonnerie.wav (cloche synthétisée).","Aucun fichier audio externe à trouver.",[
+["generer(chemin)","Écrit le fichier WAV.","Fait une seule fois."],
+["_synthetiser()","Calcule la sinusoïde amortie e^(−t/τ)·sin(2πft) avec harmonique.","Son de cloche net et audible."]]],
+["alerte/generation_audio.py","GenerateurVoix","classe","Crée message.wav (voix française) avec pyttsx3.","Voix prête et hors ligne à l’exécution.",[
+["generer(chemin, message)","Synthétise et enregistre le message.","Génération unique."],
+["_choisir_voix_francaise(moteur)","Sélectionne une voix française si elle existe.","Sinon avertissement clair."]]],
+["alerte/gestionnaire_alerte.py","GestionnaireAlerte","classe","Séquence sonnerie, pause 1 s, message vocal, dans un thread.","La vidéo ne se fige pas ; arrêt immédiat quand les yeux se rouvrent.",[
+["declencher()","Lance la séquence si aucune n’est active et si 10 s ont passé.","Évite les alertes en boucle."],
+["arreter()","Interrompt la séquence (threading.Event).","Stop dès que les yeux se rouvrent."],
+["bip()","Sonnerie courte, au plus une fois par minute.","Alerte légère pour SOMNOLENT."],
+["statut()","Renvoie REPOS, SONNERIE, PAUSE ou VOIX.","Affichage dans la carte ALERTE."],
+["fermer()","Arrête les sons et le mixeur.","Fermeture propre."],
+["_sequence()","Joue la sonnerie, attend sa durée + 1 s, joue la voix.","Corps du thread."]]],
+["interface/dessin.py","Theme","classe statique","Palette sombre clinique et couleurs par état.","Un seul endroit pour l’identité visuelle.",[
+["couleur_etat(etat) (statique)","Renvoie la couleur B-G-R de l’état.","Yeux, badge et cartes cohérents."]]],
+["interface/dessin.py","Dessinateur","classe","Primitives de dessin OpenCV.","Évite de répéter du code graphique dans chaque carte.",[
+["texte(…)","Écrit un texte aligné, avec couleur et taille.","Base de tous les libellés."],
+["rectangle_arrondi(…)","Dessine une carte aux coins arrondis.","Look clinique."],
+["barre(…)","Dessine une barre de progression fine.","Visualise EAR, PERCLOS, calibration."],
+["etiquette(…)","Petit libellé majuscule espacé et grisé.","Style de la capture."],
+["fond_translucide(…)","Mélange un calque (cv2.addWeighted).","Maillage et badges translucides."]]],
+["interface/liaisons.py","LiaisonsVisage","classe","Fournit les liaisons du maillage par groupe : ovale, yeux, sourcils, lèvres, nez, iris, tesselation.","Robuste aux versions de MediaPipe.",[
+["groupe(nom)","Renvoie la liste de paires (a, b).","API stable pour le masque."],
+["_charger_tasks()","Lit les connexions de l’API Tasks.","Voie recommandée."],
+["_charger_legacy()","Lit celles de mp.solutions si besoin.","Plan B pour les anciennes versions."]]],
+["interface/rendu_masque.py","RenduMasque","classe","Dessine le masque clinique sur la vidéo.","Rend le suivi visible : essentiel à la démonstration.",[
+["dessiner(image, visage, etat, options)","Applique les couches du masque.","Point d’entrée unique."],
+["_maillage(…)","Maillage translucide cyan.","Montre la qualité du suivi."],
+["_contours(…)","Ovale, sourcils, iris, lèvres, nez en couleurs distinctes.","Suivi de chaque élément."],
+["_yeux(…)","Yeux dans la couleur de l’état.","Retour visuel immédiat."],
+["_reperes_angle(…)","Repères d’angle autour du visage.","Cadrage clinique."],
+["_guides_croix(…)","Croix et cercle centrés.","Guides de la capture."],
+["_badge(…)","« VISAGE VERROUILLÉ » ou « RECHERCHE… ».","Statut de suivi."]]],
+["interface/cartes.py","Carte","classe","Base commune des cartes (titre, cadre).","Toutes les cartes partagent le même cadre.",[
+["dessiner(canevas, donnees)","Contrat à redéfinir.","Interface commune."],
+["_cadre(canevas)","Dessine le cadre et le titre.","Cohérence visuelle."]]],
+["interface/cartes.py","CarteEtat","classe","Carte ÉTAT DU CONDUCTEUR.","L’information la plus importante, en grand.",[
+["dessiner(canevas, donnees)","Affiche l’état en grand, dans sa couleur.","Lecture à distance."]]],
+["interface/cartes.py","CarteMesures","classe","Carte MESURES : EAR et seuil, MAR, PERCLOS, durée, tangage.","Montre les chiffres du traitement interne.",[
+["dessiner(canevas, donnees)","Affiche les lignes de mesure.","Compose la carte."],
+["_ligne_mesure(…)","Libellé, valeur et barre.","Évite la répétition."]]],
+["interface/cartes.py","CarteAlerte","classe","Carte ALERTE : statut de la séquence.","Prouve que la séquence se déroule.",[
+["dessiner(canevas, donnees)","Affiche le statut et la phase.","Retour sur le bloc d’alerte."]]],
+["interface/carte_courbe.py","CarteCourbe","classe","Courbe de l’EAR sur 10 s avec la ligne du seuil.","On voit le clignement et la fermeture prolongée.",[
+["ajouter_point(t, ear)","Ajoute un point et purge les anciens.","Historique de 10 s."],
+["dessiner(canevas, donnees)","Trace la courbe et le seuil.","Illustre l’analyse temporelle."]]],
+["interface/tableau_de_bord.py","TableauDeBord","classe","Compose l’écran : vidéo, cartes, barre basse, souris et clavier.","Une seule classe connaît la mise en page.",[
+["composer(image, sortie, alerte, fps)","Assemble l’image finale 1280×720.","Dernier maillon avant l’affichage."],
+["gerer_touche(k)","M, G, V basculent les options ; Q quitte.","Contrôle clavier."],
+["gerer_souris(evt, x, y)","Clics sur interrupteurs et boutons DÉMARRER / ARRÊTER.","Contrôle à la souris."],
+["_entete(…)","Titre, étiquette « FLUX OPTIQUE EN DIRECT », badge.","Style de la capture."],
+["_barre_basse(…)","Interrupteurs, boutons, mention de confidentialité.","La vidéo n’est jamais enregistrée."]]],
+["pipeline.py","PipelineSurveillance","classe","Traite une image de bout en bout : visage, mesures, analyse, décision.","Sépare le calcul de l’affichage : testable sans interface.",[
+["traiter(image, t)","Renvoie une SortieTraitement.","Point d’entrée du calcul."],
+["_calibrer(visage, t)","Phase de calibration de 5 s.","Fixe seuil et tangage de référence."],
+["_surveiller(visage, t)","Calcule mesures, indicateurs et état.","Régime normal."],
+["_visage_perdu(t)","Gère l’absence de visage (plus de 3 s).","Cas limite explicite."]]],
+["app.py","Application","classe","Orchestre caméra, pipeline, alerte et interface.","Seule classe qui connaît tous les modules.",[
+["lancer()","Ouvre les ressources et exécute la boucle.","Appelée par main.py."],
+["_boucle()","Lit, traite, alerte, affiche, gère les touches.","Cycle temps réel."],
+["_gerer_alerte(etat)","ENDORMI déclenche, sinon arrête ; SOMNOLENT fait un bip.","Relie la décision à l’action."],
+["_nettoyer()","Libère caméra, modèle, sons et fenêtre.","Fermeture propre."]]]
+];
+const S=[
+["Capturer l’image","Obtenir des images BGR horodatées.","Sans flux fiable ni horodatage, toutes les durées sont fausses."],
+["Détecter le visage et les 478 points","MediaPipe : BlazeFace puis Face Landmark.","Base de toutes les mesures ; un mauvais suivi fausse tout."],
+["Mesurer (EAR, MAR, pose)","Convertir des points en signes de fatigue.","Rend le signal indépendant de la taille du visage."],
+["Calibrer l’utilisateur","Seuil personnel sur 5 s.","Évite fausses alertes et oublis selon les morphologies."],
+["Analyser dans le temps","Lissage, durée, PERCLOS, bâillements.","Distingue un clignement d’un endormissement."],
+["Décider de l’état","Règles ordonnées par gravité.","Rend la décision explicable à l’oral."],
+["Alerter","Sonnerie, pause 1 s, voix, dans un thread.","Raison d’être du système ; le thread évite de figer la vidéo."],
+["Afficher masque et tableau de bord","Interface clinique en direct.","Rend visible le traitement interne : atout de l’exposé."],
+["Tester et évaluer","Tests unitaires, scénarios, latence.","Prouve que les seuils fonctionnent."],
+["Documenter","README, commentaires APPORT, guide d’exposé.","Le professeur évalue la compréhension."]
+];
+const T=[
+["FaceLandmarker (.task) : BlazeFace + Face Landmark","noyau/suivi_visage.py","Détecte le visage et fournit 478 points sans entraîner de modèle."],
+["cv2.VideoCapture","noyau/camera.py","Lit les images de la caméra."],
+["cv2.cvtColor (BGR→RGB)","noyau/suivi_visage.py","MediaPipe attend du RGB, OpenCV fournit du BGR."],
+["cv2.solvePnP + Rodrigues","mesures/pose_tete.py","Retrouve l’orientation 3D de la tête avec 6 points."],
+["numpy.median","analyse/calibration.py","Seuil robuste aux clignements, contrairement à la moyenne."],
+["Moyenne exponentielle (EMA)","analyse/outils_temporels.py","Lisse le bruit en gardant une seule valeur."],
+["collections.deque","analyse/outils_temporels.py","Fenêtre glissante efficace pour PERCLOS et compteurs."],
+["time.monotonic","noyau/camera.py","Horloge sans saut, fiable pour mesurer des durées."],
+["threading.Thread / Event","alerte/gestionnaire_alerte.py","Joue l’alerte sans figer la vidéo, arrêt immédiat possible."],
+["pygame.mixer","alerte/gestionnaire_alerte.py","Lecture des sons et de la voix."],
+["pyttsx3","alerte/generation_audio.py","Voix française hors ligne, générée une seule fois."],
+["Sinusoïde amortie (NumPy)","alerte/generation_audio.py","Synthèse de la sonnerie sans fichier externe."],
+["cv2.addWeighted","interface/dessin.py","Translucidité du maillage et des badges."],
+["cv2.line / polylines / putText","interface/","Dessin du masque et du tableau de bord."],
+["dataclass / Enum","noyau/modeles.py","Objets typés et états sans fautes de frappe."]
+];
+const O=[
+["1","modeles, config","Import sans erreur ; valider() passe."],
+["2","camera, suivi_visage","478 points affichés dans la console."],
+["3","mesures_visage, pose_tete","EAR autour de 0,27 yeux ouverts, sous 0,1 yeux fermés."],
+["4","outils_temporels, analyseur_temporel","Tests de lissage et de PERCLOS verts."],
+["5","calibration, decision","États corrects sur des scénarios simulés."],
+["6","generation_audio, gestionnaire_alerte","Sonnerie, pause de 1 s, voix ; arrêt immédiat."],
+["7","dessin, liaisons, rendu_masque, cartes, carte_courbe, tableau_de_bord","Masque et cartes fluides, au moins 15 FPS."],
+["8","pipeline, app, main","Démarrage, calibration, états et alerte de bout en bout."],
+["9","tests, scripts, README","Tests verts ; installation depuis zéro."]
+];
+const C=[
+"Interface en OpenCV : une fenêtre unique de 1280×720 composée avec NumPy, souris via <code>setMouseCallback</code> ; aucune dépendance supplémentaire.",
+"Liaisons du maillage lues par l’API Tasks avec repli sur <code>mp.solutions</code>, car leur disponibilité varie selon les versions de MediaPipe.",
+"Durées calculées avec <code>time.monotonic()</code>, insensible aux changements d’heure.",
+"Sonnerie et voix générées une fois en .wav, puis lues avec pygame : fiable et hors ligne.",
+"Pipeline séparé de l’application : le calcul se teste sans interface.",
+"Quelques fichiers de moins de 100 lignes (<code>main.py</code>, <code>carte_courbe.py</code>, <code>generer_assets.py</code>) sont conservés car ils ont une seule responsabilité claire. Aucun fichier ne dépasse 500 lignes.",
+"Chaque usage de modèle ou de mot-clé important est annoté par un commentaire <code>APPORT :</code> ; chaque classe et méthode a une docstring en français.",
+"Aucune analyse du nombre d’or : le masque sert au suivi et à la démonstration."
+];
+const e=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const $=id=>document.getElementById(id);
+const nm=CL.reduce((a,c)=>a+c[5].length,0);
+const py=F.filter(f=>f[0].endsWith(".py"));
+const mods=F.filter(f=>!/^(scripts|tests)\//.test(f[0]));
+const lignes=F.reduce((a,f)=>a+f[2],0);
+$("kpi").innerHTML=[[py.length,"fichiers Python"],[mods.length,"modules de l’application"],[CL.length,"classes"],[nm,"méthodes (hors constructeurs)"],["≈"+lignes,"lignes estimées"],["500","lignes maximum par fichier"]].map(k=>`<div class="k"><b>${k[0]}</b><span class="lb">${k[1]}</span></div>`).join("");
+$("pipe").innerHTML=["Caméra","Prétraitement RGB","Face Landmarker (478 points)","Mesures EAR · MAR · pose","Calibration","Analyse temporelle","Décision","Alerte"].map(x=>`<div>${x}</div>`).join("<i>→</i>")+`<div style="border-color:var(--ac)">Masque et tableau de bord en parallèle</div>`;
+$("steps").innerHTML="<tr><th>#</th><th>Étape</th><th>But</th><th>Importance</th></tr>"+S.map((s,i)=>`<tr><td>${i+1}</td><td>${e(s[0])}</td><td>${e(s[1])}</td><td>${e(s[2])}</td></tr>`).join("");
+$("files").innerHTML="<tr><th>Fichier</th><th>Rôle</th><th>Classes</th><th>Lignes</th></tr>"+F.map(f=>{const n=CL.filter(c=>c[0]===f[0]).length;return `<tr><td><code>${f[0]}</code></td><td>${e(f[1])}</td><td>${n||"–"}</td><td>≈${f[2]}</td></tr>`}).join("");
+$("classes").innerHTML=CL.map(c=>`<details open><summary>${e(c[1])}<span class="tag">${c[2]}</span><small>${c[0]} · ${c[5].length} méthode${c[5].length>1?"s":""}</small></summary><p><b>Rôle :</b> ${e(c[3])}</p><p><em>Pourquoi :</em> ${e(c[4])}</p>${c[5].length?`<div class="w"><table><tr><th>Méthode</th><th>Ce qu’elle fait</th><th>Pourquoi</th></tr>${c[5].map(m=>`<tr><td><code>${e(m[0])}</code></td><td>${e(m[1])}</td><td>${e(m[2])}</td></tr>`).join("")}</table></div>`:""}</details>`).join("");
+$("tech").innerHTML="<tr><th>Élément</th><th>Où</th><th>Apport</th></tr>"+T.map(t=>`<tr><td>${e(t[0])}</td><td><code>${e(t[1])}</code></td><td>${e(t[2])}</td></tr>`).join("");
+$("order").innerHTML="<tr><th>#</th><th>Modules</th><th>Critère de validation</th></tr>"+O.map(o=>`<tr><td>${o[0]}</td><td>${e(o[1])}</td><td>${e(o[2])}</td></tr>`).join("");
+$("choices").innerHTML=C.map(c=>`<li>${c}</li>`).join("");
+</script>
+</body>
+</html>
