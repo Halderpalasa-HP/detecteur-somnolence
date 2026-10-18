@@ -30,13 +30,13 @@ import numpy as np
 
 
 class GenerateurSonnerie:
-    """Crée une sonnerie type alarme : bips répétés (pi pi pi pi pi pi).
+    """Crée une sonnerie type alarme : bips répétés (pi pi pi pi pi).
 
-    PATTERN : bip de 100 ms à 880 Hz, silence de 100 ms, répété pendant ~5 secondes.
+    PATTERN : bip de 100 ms à 880 Hz, silence de 100 ms, répété pendant ~3 secondes.
     """
 
     FREQUENCE_ECHANTILLONNAGE = 44100   # échantillons par seconde
-    DUREE_TOTALE = 5.0                  # secondes (durée totale de la sonnerie)
+    DUREE_TOTALE = 3.0                  # secondes (durée totale de la sonnerie)
     FREQUENCE_BIP = 880.0               # hertz (la aigu)
     DUREE_BIP = 0.1                     # secondes par bip
     DUREE_SILENCE = 0.1                 # secondes entre les bips
